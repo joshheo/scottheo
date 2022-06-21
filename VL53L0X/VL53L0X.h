@@ -1,0 +1,415 @@
+/*******************************************************************************
+ Copyright © 2016, STMicroelectronics International N.V.
+ All rights reserved.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+ * Neither the name of STMicroelectronics nor the
+ names of its contributors may be used to endorse or promote products
+ derived from this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
+ NON-INFRINGEMENT OF INTELLECTUAL PROPERTY RIGHTS ARE DISCLAIMED.
+ IN NO EVENT SHALL STMICROELECTRONICS INTERNATIONAL N.V. BE LIABLE FOR ANY
+ DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *****************************************************************************/
+
+#ifndef __VL53L0X_CLASS_H
+#define __VL53L0X_CLASS_H
+
+//------- Feburary 6th, 2018 by JH1PJL / K.Arai --------------------------------
+//------- Updated on Feburary 26th, 2020 ---------------------------------------
+//ORIGINAL=1 does NOT mean anything but just keep original source code as it is!
+//You can NOT compile with ORIGINAL=1 !!
+#define		ORIGINAL		0	// Just keep = 0
+#define		USE_I2C_2V8
+//------------------------------------------------------------------------------
+
+#if ORIGINAL
+#ifdef _MSC_VER
+#   ifdef VL53L0X_API_EXPORTS
+#       define VL53L0X_API  __declspec(dllexport)
+#   else
+#       define VL53L0X_API
+#   endif
+#else
+#   define VL53L0X_API
+#endif
+#endif
+
+/* Includes ------------------------------------------------------------------*/
+#include "mbed.h"
+#if ORIGINAL
+#include "RangeSensor.h"
+#include "DevI2C.h"
+#include "PinNames.h"
+#endif
+#include "VL53L0X_def.h"
+#include "VL53L0X_platform.h"
+#if ORIGINAL
+#include "Stmpe1600.h"
+#endif
+
+#if !ORIGINAL
+//------- Feburary 4th, 2018 by JH1PJL / K.Arai --------------------------------
+//	moved to following header file
+#include "VL53L0X_1st.h"
+//------------------------------------------------------------------------------
+#endif
+
+/* sensor operating modes */
+typedef enum {
+    range_single_shot_polling = 1,
+    range_continuous_polling,
+    range_continuous_interrupt,
+    range_continuous_polling_low_threshold,
+    range_continuous_polling_high_threshold,
+    range_continuous_polling_out_of_window,
+    range_continuous_interrupt_low_threshold,
+    range_continuous_interrupt_high_threshold,
+    range_continuous_interrupt_out_of_window,
+} OperatingMode;
+
+#if !ORIGINAL
+/* sensor range profiles */
+typedef enum {
+    range_hi_speed_20ms_120cm = 1,
+    range_hi_accurate_200ms_120cm,
+    range_long_distance_33ms_200cm,
+} RangeProfile;
+#endif
+
+/** default device address */
+#if ORIGINAL
+#define VL53L0X_DEFAULT_ADDRESS		0x52 /* (8-bit) */
+#else
+// No other choice
+#define VL53L0X_DEFAULT_ADDRESS	0x52 // 8-bit(0x53/Read & 0x52?Write) 0x29(7bit)
+#endif
+
+#if !ORIGINAL
+#if (MBED_MAJOR_VERSION == 2)
+#define	WAIT_MS(x)				wait_ms(x)
+#define VL53L0X_OsDelay(...) 	wait_ms(2)
+#elif (MBED_MAJOR_VERSION == 5)
+#define WAIT_MS(x)				ThisThread::sleep_for(x)
+#define VL53L0X_OsDelay(...) 	ThisThread::sleep_for(2)
+#else
+#warning "I cannot control wait_ms()!!"
+#endif
+#endif	// !ORIGINAL
+
+#if !ORIGINAL
+
+//--------------- Simple debug -------------------------------------------------
+//extern DigitalOut myled;
+//------------------------------------------------------------------------------
+
+/** Interface for STMicronics VL53L0X
+ *  World smallest Time-of-Flight (ToF) ranging sensor
+ *
+ * @code
+ * #include "mbed.h"
+ *
+ * // I2C Communication
+ * VL53L0X		sensor(I2C_SDA, I2C_SCL, D8);	// SDA, SCL & XSHUT
+ * // If you connected I2C line not only this device but also other devices,
+ * //     you need to declare following method.
+ * I2C			i2c(I2C_SDA, I2C_SCL);
+ * VL53L0X		sensor(i2c, D8);				// I2C, XSHUT
+ *
+ * int main()
+ * {
+ *     int status = VL53L0X_ERROR_NONE;
+ *     uint32_t data;
+ *
+ *     status = sensor.init_sensor(0x33<<1U); //new addres(not equal others)
+ *     status = sensor.set_mode(range_long_distance_33ms_200cm);
+ *     //status = sensor.set_mode(range_hi_accurate_200ms_120cm);
+ *     //status = sensor.set_mode(range_hi_speed_20ms_120cm);
+ * 	   while (true) {
+ *         status = sensor.get_distance(&data);
+ *         if (status == VL53L0X_ERROR_NONE) {
+ *             printf("%5d\r\n", data);
+ *         } else {
+ *             printf("error\r\n");
+ *         }
+ *     }
+ * }
+ * @endcode
+ */
+
+
+/* Classes -------------------------------------------------------------------*/
+/** Class representing a VL53L0 sensor component
+ */
+class VL53L0X
+{
+public:
+    /** Constructor
+     * @param[in] &i2c device I2C to be used for communication
+     * @param[in] pin Mbed DigitalInOut PinName to be used for XSHUT
+     * @param[in] &pin_gpio1 pin Mbed InterruptIn PinName
+     *             to be used as component GPIO_1 INT
+     */
+    VL53L0X(I2C& i2c, PinName xshut, PinName pin_gpio1) : _i2c(i2c),
+        _gpio0(xshut)
+    {
+        _gpio1Int = NULL;
+		preparation();
+    }
+
+    /** Constructor 2 (another simple way)
+     * @param[in] Pin for I2C SDA & SDL
+     * @param[in] pin Mbed DigitalInOut PinName to be used for XSHUT
+     */
+    VL53L0X(PinName p_sda, PinName p_scl, PinName xshut)
+        : _i2c_p(new I2C(p_sda, p_scl)), _i2c(*_i2c_p), _gpio0(xshut) {
+        _gpio1Int = NULL;
+		preparation();
+    }
+
+    /** Constructor 3 (another simple way)
+     * @param[in] &i2c device I2C to be used for communication
+     * @param[in] pin Mbed DigitalInOut PinName to be used for XSHUT
+     */
+    VL53L0X(I2C& p_i2c, PinName xshut) : _i2c(p_i2c), _gpio0(xshut) {
+        _gpio1Int = NULL;
+		preparation();
+    }
+
+    /** Destructor
+     */
+    virtual ~VL53L0X()
+    {
+        if (_gpio1Int != NULL) {
+            delete _gpio1Int;
+        }
+    }
+#else
+#warning "please recover original constractor form VL53L0X_header_original.txt"
+#endif
+
+    /*** Interface Methods ***/
+    /*** High level API ***/
+#if !ORIGINAL
+    /**
+     * @brief       initialize
+     * @return      void
+     */
+    /* turns on the sensor */
+    void preparation(void)
+    {
+        _my_device.I2cDevAddr = VL53L0X_DEFAULT_ADDRESS;
+        _my_device.comms_type = 1; // VL53L0X_COMMS_I2C
+        _my_device.comms_speed_khz = 400;
+        _device = &_my_device;
+        _range_mode = range_long_distance_33ms_200cm;
+        VL53L0X_off();
+    }
+#endif
+
+    /**
+     * @brief       PowerOn the sensor
+     * @return      void
+     */
+    /* turns on the sensor */
+    void VL53L0X_on(void)
+    {
+#if ORIGINAL
+        if (_gpio0) {
+            *_gpio0 = 1;
+        } else {
+            if (_expgpio0) {
+                *_expgpio0 = 1;
+            }
+        }
+        wait_ms(10);
+#else
+		if (_gpio0.is_connected()){
+			_gpio0.output();
+			_gpio0 = 1;
+			_gpio0.input();
+		}
+        WAIT_MS(1);
+#endif
+    }
+
+    /**
+     * @brief       PowerOff the sensor
+     * @return      void
+     */
+    /* turns off the sensor */
+    void VL53L0X_off(void)
+    {
+#if ORIGINAL
+        if (_gpio0) {
+            *_gpio0 = 0;
+        } else {
+            if (_expgpio0) {
+                *_expgpio0 = 0;
+            }
+        }
+        wait_ms(10);
+#else
+		if (_gpio0.is_connected()){
+			_gpio0 = 0;
+			_gpio0.output();
+		}
+        WAIT_MS(10);
+#endif
+    }
+
+    /**
+     * @brief       Initialize the sensor with default values
+     * @param[in]   new I2C address
+     * @return      "0" on success
+     */
+    int init_sensor(uint8_t new_addr);
+
+#if !ORIGINAL
+    /**
+     * @brief       Start the measure by single shot operating mode
+     * @param[in]   operating mode
+     * @return      "0" on success
+     */
+    int set_mode(RangeProfile range_mode) {
+        _range_mode = range_mode;
+        return start_measurement(range_single_shot_polling, NULL);
+    }
+
+    /**
+     * @brief Get ranging result and only that
+     *
+     * @par Function Description
+     * Unlike @a VL53L0X_get_ranging_measurement_data()
+     * this function only retrieves the range in millimeter \n
+     * It does any required up-scale translation\n
+     * It can be called after success status polling or in interrupt mode \n
+     * @warning these function is not doing wrap around filtering \n
+     * This function doesn't perform any data ready check!
+     *
+     * @param p_data  Pointer to range distance
+     * @return        "0" on success
+     */
+    virtual int get_distance(uint32_t *p_data)
+    {
+        int status = 0;
+        VL53L0X_RangingMeasurementData_t p_ranging_measurement_data;
+
+#if ORIGINAL
+        status = start_measurement(range_single_shot_polling, NULL);
+#else
+        status = VL53L0X_start_measurement(_device);
+#endif
+        if (!status) {
+            status = get_measurement(range_single_shot_polling,
+            						 &p_ranging_measurement_data);
+        }
+        if (p_ranging_measurement_data.RangeStatus == 0) {
+            // we have a valid range.
+            *p_data = p_ranging_measurement_data.RangeMilliMeter;
+        } else {
+            *p_data = 0;
+            status = VL53L0X_ERROR_RANGE_ERROR;
+        }
+        stop_measurement(range_single_shot_polling);
+        return status;
+    }
+#endif
+
+#if !ORIGINAL
+//------- Feburary 4th, 2018 by JH1PJL / K.Arai --------------------------------
+//	moved to following header file
+#include "VL53L0X_2nd.h"
+//------------------------------------------------------------------------------
+#else
+#warning "please recover original functions form VL53L0X_2nd.h"
+#endif
+
+private:
+
+#if !ORIGINAL
+//------- Feburary 4th, 2018 by JH1PJL / K.Arai --------------------------------
+//	moved to following header file
+#include "VL53L0X_3rd.h"
+//------------------------------------------------------------------------------
+#else
+#warning "please recover original functions form VL53L0X_3rd.h"
+#endif
+#if !ORIGINAL
+    static const unsigned int TEMP_BUF_SIZE = 32;
+
+    int i2c_write(uint8_t* pBuffer, uint8_t DeviceAddr, uint8_t RegisterAddr,
+                  uint16_t NumByteToWrite) {
+        int ret;
+        uint8_t tmp[TEMP_BUF_SIZE];
+
+        if(NumByteToWrite >= TEMP_BUF_SIZE) return -2;
+        /* First, send device address. Then, send data and STOP condition */
+        tmp[0] = RegisterAddr;
+        memcpy(tmp+1, pBuffer, NumByteToWrite);
+        ret = _i2c.write(DeviceAddr, (const char*)tmp, NumByteToWrite+1, false);
+        if(ret) return -1;
+        return 0;
+    }
+
+    int i2c_read(uint8_t* pBuffer, uint8_t DeviceAddr, uint8_t RegisterAddr,
+                 uint16_t NumByteToRead) {
+        int ret;
+
+        //--debug--
+        //myled = 1;
+        /* Send device address, with no STOP condition */
+        ret = _i2c.write(DeviceAddr, (const char*)&RegisterAddr, 1, true);
+        //--debug--
+        //myled = 0;
+        if(!ret) {
+            /* Read data, with STOP condition  */
+            ret = _i2c.read(DeviceAddr, (char*)pBuffer, NumByteToRead, false);
+        }
+        if(ret) return -1;
+        return 0;
+    }
+#endif
+
+    VL53L0X_DeviceInfo_t _device_info;
+
+#if !ORIGINAL
+	RangeProfile _range_mode;
+#endif
+
+#if ORIGINAL
+    /* IO Device */
+    DevI2C *_dev_i2c;
+    /* Digital out pin */
+    DigitalOut *_gpio0;
+    /* GPIO expander */
+    Stmpe1600DigiOut *_expgpio0;
+#else
+    /* IO Device */
+    I2C		*_i2c_p;
+    I2C 	&_i2c;
+    /* Digital in and out pin */
+    DigitalInOut _gpio0;
+#endif
+    /* Measure detection IRQ */
+    InterruptIn *_gpio1Int;
+    /* Device data */
+    VL53L0X_Dev_t _my_device;
+    VL53L0X_DEV _device;
+};
+
+#endif /* _VL53L0X_CLASS_H_ */

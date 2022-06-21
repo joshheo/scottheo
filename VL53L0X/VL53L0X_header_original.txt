@@ -1,0 +1,56 @@
+
+/* Classes -------------------------------------------------------------------*/
+/** Class representing a VL53L0 sensor component
+ */
+class VL53L0X : public RangeSensor
+{
+public:
+    /** Constructor
+     * @param[in] &i2c device I2C to be used for communication
+     * @param[in] &pin_gpio1 pin Mbed InterruptIn PinName to be used as component GPIO_1 INT
+     * @param[in] dev_addr device address, 0x29 by default
+     */
+    VL53L0X(DevI2C *i2c, DigitalOut *pin, PinName pin_gpio1, uint8_t dev_addr = VL53L0X_DEFAULT_ADDRESS) : _dev_i2c(i2c),
+        _gpio0(pin)
+    {
+        _my_device.I2cDevAddr = dev_addr;
+        _my_device.comms_type = 1; // VL53L0X_COMMS_I2C
+        _my_device.comms_speed_khz = 400;
+        _device = &_my_device;
+        _expgpio0 = NULL;
+        if (pin_gpio1 != NC) {
+            _gpio1Int = new InterruptIn(pin_gpio1);
+        } else {
+            _gpio1Int = NULL;
+        }
+    }
+
+    /** Constructor 2 (STMPE1600DigiOut)
+     * @param[in] i2c device I2C to be used for communication
+     * @param[in] &pin Gpio Expander STMPE1600DigiOut pin to be used as component GPIO_0 CE
+     * @param[in] pin_gpio1 pin Mbed InterruptIn PinName to be used as component GPIO_1 INT
+     * @param[in] device address, 0x29 by default
+     */
+    VL53L0X(DevI2C *i2c, Stmpe1600DigiOut *pin, PinName pin_gpio1,
+            uint8_t dev_addr = VL53L0X_DEFAULT_ADDRESS) : _dev_i2c(i2c), _expgpio0(pin)
+    {
+        _my_device.I2cDevAddr = dev_addr;
+        _my_device.comms_type = 1; // VL53L0X_COMMS_I2C
+        _my_device.comms_speed_khz = 400;
+        _device = &_my_device;
+        _gpio0 = NULL;
+        if (pin_gpio1 != NC) {
+            _gpio1Int = new InterruptIn(pin_gpio1);
+        } else {
+            _gpio1Int = NULL;
+        }
+    }
+
+    /** Destructor
+     */
+    virtual ~VL53L0X()
+    {
+        if (_gpio1Int != NULL) {
+            delete _gpio1Int;
+        }
+    }
