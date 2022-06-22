@@ -2139,6 +2139,7 @@ void tof_thread(){
                         //pc.putc(tof_Buffer[i]);
                         } 
                     } 
+
                     
                     free(data_c_buffer);
                     free(tof_Buffer); 
