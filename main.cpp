@@ -141,7 +141,7 @@ char Fail_buffer[10] = {0x01, 0x0A, 0x02, 0x01, 0x00, 0x01, 0x03, 0x00, 0x03};
 char Fake_buffer[10] = {0x01, 0x0A, 0x02, 0x01, 0x00, 0x01, 0x04, 0x00, 0x03};
 char AP_Watchdog[10] = {0x01, 0x0A, 0x11, 0x00, 0x00, 0x01, 0x02, 0x00, 0x03};
 
-char Mbed_os_version_Buffer[12] = {0x01, 0x0a, 0x08, 0x00, 0x00, 0x03, 0x01, 0x00, 0x09, 0x00, 0x03};
+char Mbed_os_version_Buffer[12] = {0x01, 0x0a, 0x08, 0x00, 0x00, 0x03, 0x01, 0x01, 0x00, 0x00, 0x03};
 
 uint32_t addr = 0x1004a400;
 
@@ -1993,7 +1993,7 @@ void tof_thread(){
 
         
         status = sensor.get_distance(&data);
-        pc.printf(" %d ",data); 
+        //pc.printf(" %d ",data); 
         if(TOF_Start == 1){
             if (status == VL53L0X_ERROR_NONE) { 
                 //Cy_SysLib_Delay(10); 
@@ -3014,8 +3014,9 @@ int main(){
         }
 */
         if(ir_led_flag == 1){
-            TOF_Start = 0;
+            TOF_Start = 0; 
             LED_D2_Touch1_Test();
+            ir_led_flag = 0;
         }
     //TEST_HEO
         if(Door_status_open == 1){
