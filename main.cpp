@@ -89,7 +89,7 @@ Timer       t_2;
 Timer       Factory_D;
 Timer       LED_T;
 Timer       Watchdog_T;
-Timer       Hotel_T;
+Timer       Hotel_T; 
 
 Thread thread_TOF;
 Thread thread_LED;
@@ -110,7 +110,7 @@ static int Verify_buffer_count, string_485, tamper_led_flag, relay_delay_len, Re
 
 static int MLX90614_tof_data, TOF_flag,  MLX90614_tof_data_count, MLX90614_tof_data_flag, MLX90614_data_flag;
 static int Watchdog_flag, Watchdog_reset_flag, relay_status, Hold_status, Hotel_T_flag;
-static int Exit, Fire_Alarm_A, Fire_Alarm_B, Fire_Release_S; //IO_out 0->1 
+static int Exit, Fire_Alarm_A, Fire_Alarm_B, Fire_Release_S, GPI_flag, factory_t; //IO_out 0->1 
 
 int LED_Start_R = 70;
 int LED_Start_G = 150;
@@ -1778,7 +1778,7 @@ void verify(){
             string_possition = 0;
             Touch_led_flag = 0; 
         }
-    
+    // --------------------------------------- RFID Setting ------------------------------------
     /*
     if(AP_Buffer[01] == 0x0d){
         if(AP_Buffer[02] == 0x01){
@@ -2124,6 +2124,7 @@ void tof_thread(){
                     tof_Buffer[3]=0x00;
                     tof_Buffer[4]=0x00;
                     tof_Buffer[5]=tof_buffer_len;
+
 
                     sprintf(data_c_buffer, "%d", data_c);
                     data_c_buffer[tof_buffer_len] = 0x00;
@@ -2472,10 +2473,10 @@ void Touch(){
 }
 
 void GPI_rise(){
-    /*
-    device.printf("RISE"); 
+    
+    pc.printf("RISE"); 
     GPI_flag = 1;
-    */  
+    
     pc.printf("RISE");
     IO_Buffer[3] = 0x01;
     IO_Buffer[6] = 0x30;
@@ -2489,12 +2490,12 @@ void GPI_rise(){
     
 }
 void GPI_fall(){
-    /*
-    device.printf("fall");
+    
+    pc.printf("fall");
     Factory_D.reset();
     Factory_D.stop();
     GPI_flag = 0;
-    */
+    
     Cy_SysLib_Delay(3);  
     pc.printf("fall");
     IO_Buffer[3] = 0x00;
@@ -2567,22 +2568,22 @@ void io_IN(){
             LED_D1_ON(); 
         }
     }
-    /*
+    
     if(GPI_flag == 1){
 
         Factory_D.start();
         factory_t = Factory_D.read();
-        device.printf("%d",factory_t);
+        pc.printf("%d",factory_t);
 
         if(factory_t > 5){
-            device.printf("fall");
+            pc.printf("fall");
             IO_Buffer[3] = 0x00;
             IO_Buffer[6] = 0x30;
             IO_Buffer[7] = 0x00;
             IO_Buffer[8] = 0x03;
             for(int i=0; i<9; i++){
                 ap.putc(IO_Buffer[i]);
-                device.putc(IO_Buffer[i]);
+                pc.putc(IO_Buffer[i]);
             }
             Cy_SysLib_Delay(3);
             Factory_D.reset();
@@ -2590,7 +2591,7 @@ void io_IN(){
             GPI_flag = 0;
         }
     }
-    */
+    
 
 
     if(Exit_button_flag == 1){ 
@@ -3032,7 +3033,7 @@ int main(){
             Hotel_T.reset();
             Hotel_T_flag = 0;
             Hotel_T.stop();
-            pc.printf("#########Door open########");
+            //pc.printf("#########Door open########");
         }
 
         if(Door_status_close == 1){
@@ -3049,7 +3050,7 @@ int main(){
                 Hotel_T.reset();
                 Hotel_T_flag = 0;
                 Hotel_T.stop();
-                pc.printf("@@@@@Door Close@@@@@");
+                //pc.printf("@@@@@Door Close@@@@@");
                 if(Relay_status_flag == 1){
                     relay = 1;
                 }
