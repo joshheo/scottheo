@@ -1126,7 +1126,7 @@ void verify(){
             if((AP_Buffer[02] == 0x11) && (AP_Buffer[06] == 0x02)){ 
                 Watchdog_T.stop();
                 Watchdog_T.reset();
-               // Watchdog_T.start();
+                Watchdog_T.start();
                 Watchdog_reset_flag = 0;
                 Watchdog_flag = 0;
                 pc.printf("   Watchdog   "); 
@@ -2727,9 +2727,7 @@ void io_IN(){
         Cy_SysLib_Delay(50);
         Door_status_open = 1;
         Door_status_02_flag = 0;
-    }
-
-
+    } 
 }
  
 int main(){
@@ -2767,7 +2765,7 @@ int main(){
         }
         
         Watchdog_flag = Watchdog_T.read();
-
+    
         if(Watchdog_flag > 120){
             
             Watchdog_flag = 0;
@@ -2821,6 +2819,7 @@ int main(){
             }
                      
         }
+    
 
         if((AP_Buffer[02] == 0x11) && (AP_Buffer[06] == 0x01)){
             //pin_mode(AP_UART_TX,PullUp); 
@@ -3075,7 +3074,7 @@ int main(){
             Watchdog_flag = 0;
             Watchdog_reset_flag++;
 
-            if(Watchdog_reset_flag == 3){
+            if(Watchdog_reset_flag == 4){
 
                 pc.printf("reset");
                 DigitalOut AP_Reset(AP_Reset_11_4);
